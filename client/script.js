@@ -8,12 +8,14 @@
 import { state } from "./modules/state.js";
 import { getTopTracks, logout } from "./modules/apiClient.js";
 import {
-  renderTrackStack,
+  renderTrackList,
   displayError,
   showToast,
   updateModeButtons,
   showLoading,
   hideLoading,
+  updateProgress,
+  updatePlaybackState,
 } from "./modules/uiRenderer.js";
 import {
   initializePlayer,
@@ -58,11 +60,14 @@ async function init() {
     // Store tracks in state
     state.setTracks(data.items);
 
-    // Render track stack
-    renderTrackStack(state.allTracks, state.currentFocusIndex, handleCardClick);
+    // Render track list
+    renderTrackList(state.allTracks, state.currentFocusIndex, handleCardClick);
 
     // Initialize Spotify player
     await initializePlayer();
+
+    // Start polling for playback progress
+    startProgressPoller();
 
     hideLoading();
     showToast("✅ Ready to play", "success");
@@ -89,14 +94,14 @@ async function init() {
  */
 function handleCardClick(index) {
   state.setFocusIndex(index);
-  renderTrackStack(state.allTracks, state.currentFocusIndex, handleCardClick);
+  renderTrackList(state.allTracks, state.currentFocusIndex, handleCardClick);
 
   // Auto-play the focused track
   playSong(state.allUris, state.currentFocusIndex);
 }
 
 /**
- * Move through track stack
+ * Move through track list
  * @param {number} direction - Direction: -1 (up) or 1 (down)
  */
 window.moveStack = (direction) => {
@@ -104,7 +109,7 @@ window.moveStack = (direction) => {
 
   const newIndex = state.currentFocusIndex + direction;
   state.setFocusIndex(newIndex);
-  renderTrackStack(state.allTracks, state.currentFocusIndex, handleCardClick);
+  renderTrackList(state.allTracks, state.currentFocusIndex, handleCardClick);
 };
 
 /**
@@ -131,6 +136,27 @@ window.pause = () => pause();
 window.nextTrack = () => nextTrack();
 window.previousTrack = () => previousTrack();
 window.setVolume = (v) => setVolume(v);
+
+/**
+ * Toggle play/pause — reads current icon state to determine action
+ */
+window.togglePlayback = () => {
+  const pauseIcon = document.getElementById("pauseIcon");
+  if (pauseIcon && !pauseIcon.classList.contains("hidden")) {
+    pause();
+  } else {
+    resume();
+  }
+};
+
+/**
+ * Set volume from a 0-100 integer (from the HTML range slider)
+ * @param {number|string} percent - Volume percent 0-100
+ */
+window.setVolumeLevel = (percent) => {
+  const normalizedVol = Math.max(0, Math.min(100, parseFloat(percent))) / 100;
+  setVolume(normalizedVol);
+};
 
 // ============================================
 // KEYBOARD SHORTCUTS
@@ -169,23 +195,25 @@ function setupKeyboardShortcuts() {
       case "+":
       case "=": // Volume Up
         {
-          const currentVol = parseFloat(
-            document.getElementById("volumeControl")?.value || 0.5,
+          const currentVol = parseInt(
+            document.getElementById("volumeControl")?.value ?? 50,
           );
-          const newVol = Math.min(currentVol + 0.1, 1);
-          setVolume(newVol);
-          document.getElementById("volumeControl").value = newVol;
+          const newVol = Math.min(currentVol + 10, 100);
+          setVolume(newVol / 100);
+          const vc = document.getElementById("volumeControl");
+          if (vc) vc.value = newVol;
           showToast("🔊 Volume Up");
         }
         break;
       case "-": // Volume Down
         {
-          const currentVol = parseFloat(
-            document.getElementById("volumeControl")?.value || 0.5,
+          const currentVol = parseInt(
+            document.getElementById("volumeControl")?.value ?? 50,
           );
-          const newVol = Math.max(currentVol - 0.1, 0);
-          setVolume(newVol);
-          document.getElementById("volumeControl").value = newVol;
+          const newVol = Math.max(currentVol - 10, 0);
+          setVolume(newVol / 100);
+          const vc = document.getElementById("volumeControl");
+          if (vc) vc.value = newVol;
           showToast("🔉 Volume Down");
         }
         break;
@@ -298,6 +326,34 @@ window.logout = async () => {
     window.location.href = "/";
   }
 };
+
+// ============================================
+// PROGRESS POLLER
+// ============================================
+
+/** @type {number|null} Interval handle so the poller can be stopped if needed */
+let progressPollerHandle = null;
+
+/**
+ * Poll Spotify player state every second to update progress bar and play state.
+ * The SDK fires onPlayerStateChanged for track/pause changes, but continuous
+ * position updates require polling.
+ */
+function startProgressPoller() {
+  if (progressPollerHandle !== null) return; // Guard: only one poller at a time
+
+  progressPollerHandle = setInterval(async () => {
+    if (!state.player) return;
+    try {
+      const playerState = await state.player.getCurrentState();
+      if (playerState && !playerState.paused) {
+        updateProgress(playerState.position, playerState.duration);
+      }
+    } catch (_err) {
+      // Silently ignore — player may not be ready
+    }
+  }, 1000);
+}
 
 // ============================================
 // STARTUP

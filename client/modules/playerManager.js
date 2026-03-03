@@ -7,7 +7,7 @@
 
 import { fetchToken } from "./apiClient.js";
 import { state } from "./state.js";
-import { showToast, displayError } from "./uiRenderer.js";
+import { showToast, displayError, updateNowPlaying, updateProgress, updatePlaybackState } from "./uiRenderer.js";
 
 /**
  * Initialize Spotify Player
@@ -83,7 +83,7 @@ export async function initializePlayer() {
 
 /**
  * Handle player state changes
- * @param {Object} playerState - Current player state from Spotify
+ * @param {Object} playerState - Current player state from Spotify Web Playback SDK
  */
 function onPlayerStateChanged(playerState) {
   if (!playerState) {
@@ -91,21 +91,22 @@ function onPlayerStateChanged(playerState) {
     return;
   }
 
-  const {
-    current_track,
-    next_tracks,
-    paused,
-    position,
-    duration,
-    volume,
-  } = playerState;
+  // Spotify SDK nests current track under track_window
+  const { paused, position, duration, track_window } = playerState;
+  const current_track = track_window && track_window.current_track;
+
+  if (current_track) {
+    updateNowPlaying(current_track);
+  }
+
+  updateProgress(position, duration);
+  updatePlaybackState(paused);
 
   console.log("Player state:", {
-    track: current_track?.name,
+    track: current_track && current_track.name,
     paused,
     position,
     duration,
-    volume,
   });
 }
 

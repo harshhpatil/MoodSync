@@ -17,7 +17,144 @@ function escapeHtml(str) {
 }
 
 /**
- * Render the track stack (card stack UI)
+ * Render a scrollable track list
+ * @param {Array} tracks - Array of track objects
+ * @param {number} focusIndex - Index of the currently focused track
+ * @param {Function} onTrackClick - Callback when a track item is clicked
+ */
+export function renderTrackList(tracks, focusIndex, onTrackClick) {
+  const container = document.getElementById("track-list");
+  if (!container) return;
+
+  container.innerHTML = "";
+
+  const countDisplay = document.getElementById("trackCountDisplay");
+  if (countDisplay) countDisplay.textContent = `${(tracks || []).length} tracks`;
+
+  if (!Array.isArray(tracks) || tracks.length === 0) {
+    container.innerHTML =
+      '<p class="text-stone-500 text-xs text-center py-4">No tracks loaded</p>';
+    return;
+  }
+
+  tracks.forEach((track, index) => {
+    const item = document.createElement("div");
+    const isFocused = index === focusIndex;
+    const artistName = escapeHtml(
+      track.artists && track.artists.length > 0
+        ? track.artists[0].name
+        : "Unknown",
+    );
+    const trackName = escapeHtml(track.name);
+
+    item.className =
+      "flex items-center gap-2.5 px-2.5 py-2 rounded-lg cursor-pointer transition-colors text-xs " +
+      (isFocused
+        ? "bg-white/10 border border-white/20"
+        : "hover:bg-stone-800/60 border border-transparent");
+
+    item.innerHTML = `
+      <span class="text-stone-500 font-mono w-5 flex-shrink-0 text-right">${index + 1}</span>
+      <div class="flex-1 min-w-0">
+        <p class="font-medium truncate ${isFocused ? "text-white" : "text-stone-300"}">${trackName}</p>
+        <p class="text-stone-500 truncate">${artistName}</p>
+      </div>
+      ${isFocused ? '<span class="text-emerald-400 flex-shrink-0 text-[10px]">▶</span>' : ""}
+    `;
+
+    item.addEventListener("click", () => onTrackClick(index));
+    container.appendChild(item);
+  });
+
+  // Scroll focused item into view
+  const focusedItem = container.children[focusIndex];
+  if (focusedItem) {
+    focusedItem.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }
+}
+
+/**
+ * Update the Now Playing display with track information
+ * @param {Object} track - Spotify track object from SDK state
+ */
+export function updateNowPlaying(track) {
+  if (!track) return;
+
+  const trackEl = document.getElementById("nowPlayingTrack");
+  const artistEl = document.getElementById("nowPlayingArtist");
+  const albumImg = document.getElementById("albumArtImg");
+  const albumPlaceholder = document.getElementById("albumArtPlaceholder");
+
+  if (trackEl) trackEl.textContent = track.name || "Unknown Track";
+
+  const artistName =
+    track.artists && track.artists.length > 0
+      ? track.artists[0].name
+      : "—";
+  if (artistEl) artistEl.textContent = artistName;
+
+  // Update album art (SDK provides album.images array; highest res is first)
+  const albumImageUrl = track.album?.images?.[0]?.url ?? null;
+
+  if (albumImg && albumPlaceholder) {
+    if (albumImageUrl) {
+      albumImg.src = albumImageUrl;
+      albumImg.alt = escapeHtml(track.album ? track.album.name || "" : "");
+      albumImg.classList.remove("hidden");
+      albumPlaceholder.classList.add("hidden");
+    } else {
+      albumImg.classList.add("hidden");
+      albumPlaceholder.classList.remove("hidden");
+    }
+  }
+}
+
+/**
+ * Update the playback progress bar and time display
+ * @param {number} position - Current position in milliseconds
+ * @param {number} duration - Total track duration in milliseconds
+ */
+export function updateProgress(position, duration) {
+  const progressFill = document.getElementById("progressFill");
+  const currentTimeEl = document.getElementById("currentTime");
+  const totalTimeEl = document.getElementById("totalTime");
+
+  const formatTime = (ms) => {
+    const totalSeconds = Math.floor((ms || 0) / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+  };
+
+  const safeDuration = duration && duration > 0 ? duration : 1;
+  const percent = Math.min(100, ((position || 0) / safeDuration) * 100);
+
+  if (progressFill) progressFill.style.width = `${percent}%`;
+  if (currentTimeEl) currentTimeEl.textContent = formatTime(position);
+  if (totalTimeEl) totalTimeEl.textContent = formatTime(duration);
+}
+
+/**
+ * Update the play/pause button icon to reflect current playback state
+ * @param {boolean} paused - Whether playback is currently paused
+ */
+export function updatePlaybackState(paused) {
+  const playIcon = document.getElementById("playIcon");
+  const pauseIcon = document.getElementById("pauseIcon");
+
+  if (!playIcon || !pauseIcon) return;
+
+  if (paused) {
+    playIcon.classList.remove("hidden");
+    pauseIcon.classList.add("hidden");
+  } else {
+    playIcon.classList.add("hidden");
+    pauseIcon.classList.remove("hidden");
+  }
+}
+
+/**
+ * Render the track stack (card stack UI) — legacy, kept for compatibility
  * @param {Array} tracks - Array of track objects
  * @param {number} focusIndex - Index of focused track
  * @param {Function} onCardClick - Callback when card is clicked
@@ -267,12 +404,13 @@ function createLoadingIndicator() {
 
 /**
  * Update volume slider
- * @param {number} value - Volume value (0-1)
+ * @param {number} value - Volume value (0-1 float)
  */
 export function updateVolumeSlider(value) {
   const volumeControl = document.getElementById("volumeControl");
   if (volumeControl) {
-    volumeControl.value = Math.max(0, Math.min(1, value));
+    // Slider is now 0-100; convert incoming 0-1 float
+    volumeControl.value = Math.round(Math.max(0, Math.min(1, value)) * 100);
   }
 }
 
@@ -287,9 +425,13 @@ export function clearErrors() {
 }
 
 export default {
+  renderTrackList,
   renderTrackStack,
   displayError,
   showToast,
+  updateNowPlaying,
+  updateProgress,
+  updatePlaybackState,
   updateEmotionDisplay,
   updateGestureDisplay,
   updateModeButtons,
