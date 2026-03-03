@@ -1,0 +1,443 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MoodSync - AI Music Control</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      input[type="range"]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        height: 24px;
+        width: 24px;
+        border-radius: 50%;
+        background: #ffffff;
+        cursor: pointer;
+        box-shadow: 0 0 20px rgba(255, 255, 255, 0.4);
+        transition: transform 0.2s;
+      }
+      input[type="range"]::-webkit-slider-thumb:hover {
+        transform: scale(1.2);
+      }
+      input[type="range"]::-moz-range-thumb {
+        height: 24px;
+        width: 24px;
+        border-radius: 50%;
+        background: #ffffff;
+        cursor: pointer;
+        box-shadow: 0 0 20px rgba(255, 255, 255, 0.4);
+        border: none;
+        transition: transform 0.2s;
+      }
+      input[type="range"]::-moz-range-thumb:hover {
+        transform: scale(1.2);
+      }
+      
+      .card-container {
+        background: linear-gradient(135deg, rgba(30, 30, 30, 0.95) 0%, rgba(15, 15, 15, 0.95) 100%);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 20px;
+        padding: 1.5rem;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+      }
+      
+      .section-title {
+        font-size: 0.875rem;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: #a1a1aa;
+        margin-bottom: 1rem;
+      }
+      
+      .control-btn {
+        transition: all 0.2s ease;
+      }
+      
+      .control-btn:hover {
+        transform: translateY(-2px);
+      }
+      
+      .control-btn:active {
+        transform: translateY(0);
+      }
+      
+      .gesture-debug {
+        background: rgba(15, 15, 15, 0.8);
+        border: 1px solid rgba(34, 197, 94, 0.3);
+        border-radius: 12px;
+        padding: 1rem;
+        font-family: 'Monaco', 'Courier New', monospace;
+        font-size: 0.85rem;
+      }
+      
+      .gesture-stat {
+        display: flex;
+        justify-content: space-between;
+        padding: 0.5rem 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      }
+      
+      .gesture-stat:last-child {
+        border-bottom: none;
+      }
+      
+      .gesture-label {
+        color: #71717a;
+      }
+      
+      .gesture-value {
+        color: #22c55e;
+        font-weight: 600;
+      }
+      
+      .gesture-card-action {
+        animation: pulse-action 0.6s ease-out;
+      }
+      
+      @keyframes pulse-action {
+        0% { background-color: rgba(34, 197, 94, 0.3); }
+        100% { background-color: transparent; }
+      }
+      
+      .fade-in {
+        animation: fadeIn 0.4s ease-out;
+      }
+      
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+    </style>
+  </head>
+  <body class="bg-gradient-to-br from-[#0a0a0a] via-[#0f0f0f] to-[#0a0a0a] min-h-screen text-stone-100 font-sans antialiased">
+    <div class="max-w-[2000px] mx-auto px-4 py-6">
+      <!-- HEADER -->
+      <header class="mb-10 flex justify-between items-center border-b border-stone-900 pb-6">
+        <div>
+          <h1 class="text-4xl md:text-5xl font-bold text-white mb-2 tracking-tight">
+            🎵 MoodSync
+          </h1>
+          <p class="text-stone-400 text-sm font-medium">
+            AI-Powered Music & Gesture Control
+          </p>
+        </div>
+        <button
+          onclick="logout()"
+          class="px-6 py-2.5 bg-stone-900/80 hover:bg-red-900 border border-stone-700 hover:border-red-700 rounded-lg text-sm font-medium transition-all"
+        >
+          Sign Out
+        </button>
+      </header>
+
+      <!-- MAIN GRID: 3 COLUMN LAYOUT -->
+      <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+        
+        <!-- LEFT COLUMN: MUSIC PLAYER -->
+        <div class="xl:col-span-1 space-y-6">
+          <!-- Now Playing Card -->
+          <section class="card-container">
+            <h2 class="section-title">🎧 Now Playing</h2>
+            
+            <!-- Track Stack -->
+            <div class="relative h-[350px] w-full flex items-center justify-center overflow-hidden mb-6 bg-gradient-to-b from-stone-900/30 to-transparent rounded-lg">
+              <button
+                onclick="moveStack(-1)"
+                class="absolute -top-8 left-1/2 transform -translate-x-1/2 z-30 p-2 bg-stone-800/60 hover:bg-stone-700 rounded-full text-stone-300 hover:text-white transition-all"
+                title="Previous track: scroll up"
+              >
+                <span class="text-xl">▲</span>
+              </button>
+
+              <div
+                id="track-stack-container"
+                class="relative w-full h-full flex items-center justify-center px-4"
+              ></div>
+
+              <button
+                onclick="moveStack(1)"
+                class="absolute -bottom-8 left-1/2 transform -translate-x-1/2 z-30 p-2 bg-stone-800/60 hover:bg-stone-700 rounded-full text-stone-300 hover:text-white transition-all"
+                title="Next track: scroll down"
+              >
+                <span class="text-xl">▼</span>
+              </button>
+            </div>
+
+            <!-- Playback Controls -->
+            <div class="space-y-5">
+              <div class="flex justify-center items-center gap-6">
+                <button
+                  onclick="previousTrack()"
+                  class="control-btn p-3 bg-stone-800 hover:bg-stone-700 rounded-lg text-white transition-all"
+                  title="Previous Track (B)"
+                >
+                  <span class="text-xl">⏮</span>
+                </button>
+
+                <button
+                  onclick="resume()"
+                  class="control-btn flex items-center justify-center h-16 w-16 bg-green-600 hover:bg-green-500 text-white rounded-full shadow-lg hover:scale-105 font-bold"
+                  title="Play (P)"
+                >
+                  <span class="text-lg">▶</span>
+                </button>
+
+                <button
+                  onclick="pause()"
+                  class="control-btn flex items-center justify-center h-16 w-16 bg-yellow-600 hover:bg-yellow-500 text-white rounded-full shadow-lg hover:scale-105 font-bold"
+                  title="Pause (Space)"
+                >
+                  <span class="text-lg">⏸</span>
+                </button>
+
+                <button
+                  onclick="nextTrack()"
+                  class="control-btn p-3 bg-stone-800 hover:bg-stone-700 rounded-lg text-white transition-all"
+                  title="Next Track (N)"
+                >
+                  <span class="text-xl">⏭</span>
+                </button>
+              </div>
+
+              <!-- Volume Control -->
+              <div class="space-y-2">
+                <label class="block text-xs text-stone-500 uppercase tracking-wider font-medium">🔊 Volume</label>
+                <input
+                  id="volumeControl"
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.01"
+                  value="0.5"
+                  onchange="setVolume(this.value)"
+                  class="w-full h-2 bg-stone-800 rounded-full appearance-none cursor-pointer"
+                />
+              </div>
+            </div>
+          </section>
+        </div>
+        
+        <!-- CENTER COLUMN: MOOD & KEYBOARD SHORTCUTS -->
+        <div class="xl:col-span-1 space-y-6">
+          
+          <!-- Mood Text Input -->
+          <section class="card-container">
+            <h2 class="section-title">💭 Mood Analysis</h2>
+            <div class="space-y-3">
+              <textarea
+                id="moodInput"
+                rows="4"
+                placeholder="How are you feeling? (happy, sad, energetic, calm...)"
+                class="w-full bg-stone-900/60 border border-stone-700 rounded-lg p-3 text-white focus:outline-none focus:border-stone-500 focus:ring-1 focus:ring-stone-600 placeholder:text-stone-600 resize-none text-sm"
+              ></textarea>
+              <button
+                onclick="detectMood()"
+                class="control-btn w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-medium text-sm transition-all"
+              >
+                Analyze Mood
+              </button>
+              <p
+                id="detectedMood"
+                class="text-sm text-center text-stone-300 min-h-[1rem] font-medium"
+              ></p>
+            </div>
+          </section>
+          
+          <!-- Keyboard Shortcuts -->
+          <section class="card-container">
+            <h2 class="section-title">⌨️ Keyboard Shortcuts</h2>
+            <div class="space-y-2 text-xs">
+              <div class="flex justify-between items-center py-2 px-3 bg-stone-900/40 rounded">
+                <span class="text-stone-400">Play / Pause</span>
+                <span class="text-green-400 font-mono font-bold">P / Space</span>
+              </div>
+              <div class="flex justify-between items-center py-2 px-3 bg-stone-900/40 rounded">
+                <span class="text-stone-400">Next / Previous</span>
+                <span class="text-green-400 font-mono font-bold">N / B</span>
+              </div>
+              <div class="flex justify-between items-center py-2 px-3 bg-stone-900/40 rounded">
+                <span class="text-stone-400">Browse Tracks</span>
+                <span class="text-green-400 font-mono font-bold">↑ / ↓</span>
+              </div>
+              <div class="flex justify-between items-center py-2 px-3 bg-stone-900/40 rounded">
+                <span class="text-stone-400">Volume</span>
+                <span class="text-green-400 font-mono font-bold">+ / -</span>
+              </div>
+            </div>
+          </section>
+        </div>
+        
+        <!-- RIGHT COLUMN: CAMERA & GESTURE -->
+        <div class="xl:col-span-1 space-y-6">
+          
+          <!-- Camera Vision Mode -->
+          <section class="card-container">
+            <h2 class="section-title">👁️ Camera Vision</h2>
+            
+            <!-- Mode Toggle -->
+            <div class="mb-4">
+              <div class="flex gap-2 bg-stone-900/60 rounded-lg p-1.5">
+                <button
+                  id="emotionModeBtn"
+                  onclick="switchMode('emotion')"
+                  class="control-btn flex-1 py-2.5 text-sm font-semibold bg-blue-600 text-white rounded-md transition-all"
+                >
+                  😊 Emotion
+                </button>
+                <button
+                  id="gestureModeBtn"
+                  onclick="switchMode('gesture')"
+                  class="control-btn flex-1 py-2.5 text-sm font-semibold bg-stone-800 text-white rounded-md hover:bg-stone-700 transition-all"
+                >
+                  🖐️ Gesture
+                </button>
+              </div>
+            </div>
+
+            <!-- Camera Feed -->
+            <div class="relative w-full aspect-video bg-black rounded-lg overflow-hidden border-2 border-stone-800 mb-4 shadow-inner">
+              <video
+                id="video"
+                class="w-full h-full object-cover"
+                autoplay
+                muted
+              ></video>
+              <canvas
+                id="gestureCanvas"
+                class="absolute top-0 left-0 w-full h-full hidden"
+              ></canvas>
+              <div class="absolute top-2 right-2 text-xs text-stone-400 bg-black/60 px-2 py-1 rounded">Camera Feed</div>
+            </div>
+
+            <!-- Camera Control Buttons -->
+            <div class="flex gap-2 mb-4">
+              <button
+                onclick="startCamera()"
+                class="control-btn flex-1 py-2.5 bg-green-600 hover:bg-green-500 text-white rounded-lg font-medium text-sm transition-all"
+              >
+                ▶ Start
+              </button>
+              <button
+                onclick="stopCamera()"
+                class="control-btn flex-1 py-2.5 bg-red-600 hover:bg-red-500 text-white rounded-lg font-medium text-sm transition-all"
+              >
+                ⏹ Stop
+              </button>
+            </div>
+
+            <!-- Status Display -->
+            <div class="space-y-2 bg-stone-900/50 rounded-lg p-3 border border-stone-800">
+              <p
+                id="emotionResult"
+                class="text-sm text-blue-300 text-center min-h-[1.2rem] font-medium"
+              ></p>
+              <p
+                id="gestureResult"
+                class="text-base text-green-300 text-center font-semibold min-h-[1.5rem]"
+              ></p>
+            </div>
+          </section>
+
+          <!-- Gesture Debug Panel -->
+          <section class="card-container">
+            <h2 class="section-title">🔍 Gesture Debug</h2>
+            <div class="gesture-debug text-xs">
+              <div class="gesture-stat">
+                <span class="gesture-label">Landmarks Detected:</span>
+                <span class="gesture-value" id="gestureDebugLandmarks">0</span>
+              </div>
+              <div class="gesture-stat">
+                <span class="gesture-label">Last Gesture:</span>
+                <span class="gesture-value" id="gestureDebugGesture">None</span>
+              </div>
+              <div class="gesture-stat">
+                <span class="gesture-label">Gesture Cooldown:</span>
+                <span class="gesture-value" id="gestureDebugCooldown">Ready</span>
+              </div>
+              <div class="gesture-stat">
+                <span class="gesture-label">Hand Tracking:</span>
+                <span class="gesture-value" id="gestureDebugTracking">Off</span>
+              </div>
+            </div>
+          </section>
+
+          <!-- Gesture Mapping Guide -->
+          <section class="card-container">
+            <h2 class="section-title">🖐️ Gesture Mapping</h2>
+            <div class="space-y-1.5 text-xs">
+              <div class="flex justify-between items-center p-2 bg-stone-900/40 rounded hover:bg-stone-900/60 transition">
+                <span class="text-stone-300">👍 Thumbs Up</span>
+                <span class="text-emerald-400 font-semibold">▶ Play</span>
+              </div>
+              <div class="flex justify-between items-center p-2 bg-stone-900/40 rounded hover:bg-stone-900/60 transition">
+                <span class="text-stone-300">👎 Thumbs Down</span>
+                <span class="text-yellow-400 font-semibold">⏸ Pause</span>
+              </div>
+              <div class="flex justify-between items-center p-2 bg-stone-900/40 rounded hover:bg-stone-900/60 transition">
+                <span class="text-stone-300">✌️ Peace Sign</span>
+                <span class="text-blue-400 font-semibold">⏭ Next</span>
+              </div>
+              <div class="flex justify-between items-center p-2 bg-stone-900/40 rounded hover:bg-stone-900/60 transition">
+                <span class="text-stone-300">🤘 Rock Sign</span>
+                <span class="text-orange-400 font-semibold">⏮ Prev</span>
+              </div>
+              <div class="flex justify-between items-center p-2 bg-stone-900/40 rounded hover:bg-stone-900/60 transition">
+                <span class="text-stone-300">👈 / 👉 Swipe</span>
+                <span class="text-purple-400 font-semibold">Navigate</span>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+    
+    <script defer src="/vendor/face-api.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+    <script src="https://sdk.scdn.co/spotify-player.js"></script>
+    
+    <!-- Gesture Debug Support -->
+    <script>
+      window.gestureDebug = {
+        landmarksCount: 0,
+        lastGesture: 'None',
+        cooldownActive: false,
+        trackingActive: false,
+        
+        updateLandmarks(count) {
+          this.landmarksCount = count;
+          const elem = document.getElementById('gestureDebugLandmarks');
+          if (elem) elem.textContent = count > 0 ? `${count}` : '0';
+        },
+        
+        updateGesture(gesture) {
+          this.lastGesture = gesture || 'None';
+          const elem = document.getElementById('gestureDebugGesture');
+          if (elem) elem.textContent = this.lastGesture;
+        },
+        
+        setCooldown(active) {
+          this.cooldownActive = active;
+          const elem = document.getElementById('gestureDebugCooldown');
+          if (elem) elem.textContent = active ? 'Cooldown...' : 'Ready';
+        },
+        
+        setTracking(active) {
+          this.trackingActive = active;
+          const elem = document.getElementById('gestureDebugTracking');
+          if (elem) elem.textContent = active ? 'ON (tracking hand)' : 'Off';
+        }
+      };
+    </script>
+    
+    <script src="/script.js" type="module"></script>
+  </body>
+</html>
+
