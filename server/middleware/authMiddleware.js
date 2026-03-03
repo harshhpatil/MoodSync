@@ -1,15 +1,19 @@
 // middleware/authMiddleware.js - Authentication and authorization middleware
-import { SpotifyService } from "../services/spotifyService.js";
 
 /**
  * Middleware to check if user is authenticated
- * Validates that session has an access token
+ * Validates that session has a valid, non-expired access token
  */
 export const requireAuth = (req, res, next) => {
   const token = req.session?.accessToken;
 
   if (!token) {
     return res.status(401).json({ error: "Not authenticated. Please login first." });
+  }
+
+  // Check token expiry
+  if (req.session.expiresAt && Date.now() >= req.session.expiresAt) {
+    return res.status(401).json({ error: "Session expired. Please login again." });
   }
 
   next();

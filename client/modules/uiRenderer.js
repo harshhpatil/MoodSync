@@ -6,6 +6,17 @@
  */
 
 /**
+ * Escape HTML special characters to prevent XSS
+ * @param {string} str - String to escape
+ * @returns {string} Escaped string
+ */
+function escapeHtml(str) {
+  const div = document.createElement("div");
+  div.appendChild(document.createTextNode(String(str)));
+  return div.innerHTML;
+}
+
+/**
  * Render the track stack (card stack UI)
  * @param {Array} tracks - Array of track objects
  * @param {number} focusIndex - Index of focused track
@@ -29,10 +40,12 @@ export function renderTrackStack(tracks, focusIndex, onCardClick) {
   tracks.forEach((track, index) => {
     const card = document.createElement("div");
     const offset = index - focusIndex;
-    const artistName =
+    const rawArtistName =
       track.artists && track.artists.length > 0
         ? track.artists[0].name
         : "Unknown Artist";
+    const artistName = escapeHtml(rawArtistName);
+    const trackName = escapeHtml(track.name);
 
     // Determine styling based on position relative to focus
     let className =
@@ -82,7 +95,7 @@ export function renderTrackStack(tracks, focusIndex, onCardClick) {
 
     card.innerHTML = `
       <div class="flex flex-col">
-        <span class="text-2xl font-semibold text-white truncate">${track.name}</span>
+        <span class="text-2xl font-semibold text-white truncate">${trackName}</span>
         <span class="text-stone-400 text-sm mt-1">${artistName}</span>
       </div>
       <div class="mt-4 flex justify-between items-center">
@@ -109,7 +122,7 @@ export function renderTrackStack(tracks, focusIndex, onCardClick) {
 export function displayError(message) {
   const trackList = document.getElementById("tracks");
   if (trackList) {
-    trackList.innerHTML = `<li class="text-red-500 p-4">Error: ${message}</li>`;
+    trackList.innerHTML = `<li class="text-red-500 p-4">Error: ${escapeHtml(message)}</li>`;
   }
 
   // Also show as toast
@@ -174,6 +187,9 @@ export function updateGestureDisplay(label) {
  * Switch mode button UI update
  * @param {string} mode - 'emotion' or 'gesture'
  */
+const MODE_BTN_ACTIVE_CLASS = "bg-blue-600";
+const MODE_BTN_INACTIVE_CLASS = "bg-stone-800";
+
 export function updateModeButtons(mode) {
   const emotionBtn = document.getElementById("emotionModeBtn");
   const gestureBtn = document.getElementById("gestureModeBtn");
@@ -183,21 +199,21 @@ export function updateModeButtons(mode) {
   if (!emotionBtn || !gestureBtn) return;
 
   if (mode === "emotion") {
-    emotionBtn.classList.remove("bg-transparent", "text-white");
-    emotionBtn.classList.add("bg-white", "text-black");
+    emotionBtn.classList.remove(MODE_BTN_INACTIVE_CLASS);
+    emotionBtn.classList.add(MODE_BTN_ACTIVE_CLASS);
 
-    gestureBtn.classList.remove("bg-white", "text-black");
-    gestureBtn.classList.add("bg-transparent", "text-white");
+    gestureBtn.classList.remove(MODE_BTN_ACTIVE_CLASS);
+    gestureBtn.classList.add(MODE_BTN_INACTIVE_CLASS);
 
     if (gestureResult) {
       gestureResult.textContent = "";
     }
   } else {
-    gestureBtn.classList.remove("bg-transparent", "text-white");
-    gestureBtn.classList.add("bg-white", "text-black");
+    gestureBtn.classList.remove(MODE_BTN_INACTIVE_CLASS);
+    gestureBtn.classList.add(MODE_BTN_ACTIVE_CLASS);
 
-    emotionBtn.classList.remove("bg-white", "text-black");
-    emotionBtn.classList.add("bg-transparent", "text-white");
+    emotionBtn.classList.remove(MODE_BTN_ACTIVE_CLASS);
+    emotionBtn.classList.add(MODE_BTN_INACTIVE_CLASS);
 
     if (emotionResult) {
       emotionResult.textContent = "";
@@ -237,7 +253,8 @@ function createLoadingIndicator() {
   const loader = document.createElement("div");
   loader.id = "loadingIndicator";
   loader.className =
-    "fixed inset-0 bg-black/50 flex items-center justify-center z-[100] hidden";
+    "fixed inset-0 bg-black/50 flex items-center justify-center z-[100]";
+  loader.style.display = "none";
   loader.innerHTML = `
     <div class="bg-[#1c1c1c] border border-stone-700 rounded-lg p-6 text-center">
       <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>

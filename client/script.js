@@ -286,9 +286,6 @@ window.logout = async () => {
     showLoading("Logging out...");
     disconnectPlayer();
 
-    // Remove keyboard listener
-    document.removeEventListener("keydown", setupKeyboardShortcuts);
-
     // Call logout endpoint
     await logout();
 
