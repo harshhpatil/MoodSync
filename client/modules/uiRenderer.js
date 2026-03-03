@@ -94,9 +94,7 @@ export function updateNowPlaying(track) {
   if (artistEl) artistEl.textContent = artistName;
 
   // Update album art (SDK provides album.images array; highest res is first)
-  const albumImageUrl = track.album && track.album.images && track.album.images[0]
-    ? track.album.images[0].url
-    : null;
+  const albumImageUrl = track.album?.images?.[0]?.url ?? null;
 
   if (albumImg && albumPlaceholder) {
     if (albumImageUrl) {

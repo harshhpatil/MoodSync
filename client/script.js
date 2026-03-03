@@ -331,13 +331,18 @@ window.logout = async () => {
 // PROGRESS POLLER
 // ============================================
 
+/** @type {number|null} Interval handle so the poller can be stopped if needed */
+let progressPollerHandle = null;
+
 /**
  * Poll Spotify player state every second to update progress bar and play state.
  * The SDK fires onPlayerStateChanged for track/pause changes, but continuous
  * position updates require polling.
  */
 function startProgressPoller() {
-  setInterval(async () => {
+  if (progressPollerHandle !== null) return; // Guard: only one poller at a time
+
+  progressPollerHandle = setInterval(async () => {
     if (!state.player) return;
     try {
       const playerState = await state.player.getCurrentState();
