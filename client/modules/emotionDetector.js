@@ -102,7 +102,6 @@ export function startEmotionDetection() {
       )[0];
 
       const now = Date.now();
-      const elapsedSinceLastSwitch = now - state.lastEmotionSwitchAt;
       const canSwitch = state.canSwitchEmotion();
 
       if (state.lastEmotionPlayed === null) {
